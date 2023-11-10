@@ -2,6 +2,8 @@ import time
 import threading
 
 
+# Implémentation des codes du cours
+
 def task(i):
     print(f"Task {i} starts")
     time.sleep(i + 1)

@@ -1,4 +1,5 @@
 fich = "U:/Bureau/fich.txt"
+# Lecture d'un fichier texte avec gestion d'exceptions
 if __name__ == '__main__':
     try:
         with open(fich, "r") as f:
