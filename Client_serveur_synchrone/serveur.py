@@ -29,5 +29,6 @@ if __name__ == '__main__':
             conn.send(reply.encode())
 
             if reply == "bye":
+                print("En attente d'un nouveau client")
                 server_socket.listen(1)
                 conn, address = server_socket.accept()
