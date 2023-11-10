@@ -24,6 +24,10 @@ if __name__ == '__main__':
             conn.close()
             server_socket.close()
             flag = True
+        elif message == "bye":
+            print("En attente d'un nouveau client")
+            server_socket.listen(1)
+            conn, address = server_socket.accept()
         else:
             reply = str(input("Réponse du serveur :"))
             conn.send(reply.encode())

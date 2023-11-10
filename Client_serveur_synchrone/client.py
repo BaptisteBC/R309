@@ -16,10 +16,15 @@ if __name__ == '__main__':
             print("Fin de la connexion")
             client_socket.close()
             flag = True
+        elif message == "bye":
+            print("Déconnexion")
+            client_socket.close()
+            flag = True
         else:
             reply = client_socket.recv(1024).decode()
             print(f"Serveur : \n {reply}")
 
             if reply == "bye":
+                print("Déconnexion")
                 client_socket.close()
                 flag = True
