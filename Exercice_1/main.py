@@ -1,3 +1,4 @@
+# Division euclidienne de deux entiers positifs
 def divEntier(x: int, y: int) -> int:
     if x < 0 or y < 0:
         raise ZeroDivisionError("Les valeurs entrées doivent être supérieures à zéro")
