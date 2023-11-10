@@ -8,18 +8,18 @@ if __name__ == '__main__':
     client_socket = socket.socket()
     client_socket.connect((host, port))
     print("Client connecté")
+
     while not flag:
         message = str(input("Votre message : "))
         client_socket.send(message.encode())
-
         if message == "stop":
             print("Fin de la connexion")
             client_socket.close()
             flag = True
+        else:
+            reply = client_socket.recv(1024).decode()
+            print(f"Serveur : \n {reply}")
 
-        reply = client_socket.recv(1024).decode()
-        print(f"Serveur : \n {reply}")
-
-        if reply == "bye":
-            client_socket.close()
-            flag = True
+            if reply == "bye":
+                client_socket.close()
+                flag = True
