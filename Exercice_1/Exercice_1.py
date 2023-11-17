@@ -23,6 +23,8 @@ if __name__ == '__main__':
         print(err)
     except ZeroDivisionError as err:
         print(err)
+    except KeyboardInterrupt:
+        print("\n Arret du script par l'utilisateur")
 
     else:
         print(test)

@@ -24,6 +24,7 @@ if __name__ == '__main__':
             conn.close()
             server_socket.close()
             flag = True
+
         elif message == "bye":
             print("En attente d'un nouveau client")
             server_socket.listen(1)
@@ -36,3 +37,11 @@ if __name__ == '__main__':
                 print("En attente d'un nouveau client")
                 server_socket.listen(1)
                 conn, address = server_socket.accept()
+
+            if reply == "stop":
+                reply = "Au revoir"
+                print("Fermeture de la connexion")
+                conn.send(reply.encode())
+                conn.close()
+                server_socket.close()
+                flag = True

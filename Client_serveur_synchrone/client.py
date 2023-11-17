@@ -12,6 +12,7 @@ if __name__ == '__main__':
     while not flag:
         message = str(input("Votre message : "))
         client_socket.send(message.encode())
+
         if message == "stop":
             print("Fin de la connexion")
             client_socket.close()
@@ -26,5 +27,9 @@ if __name__ == '__main__':
 
             if reply == "bye":
                 print("Déconnexion")
+                client_socket.close()
+                flag = True
+            if reply == "stop":
+                print("Fin de la connexion")
                 client_socket.close()
                 flag = True
