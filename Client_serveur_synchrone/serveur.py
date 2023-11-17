@@ -7,6 +7,7 @@ if __name__ == '__main__':
     server_socket = socket.socket()
     print("Serveur ouvert")
     server_socket.bind(('0.0.0.0', port))
+
     server_socket.listen(1)
     conn, address = server_socket.accept()
 
