@@ -13,6 +13,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
         grid = QGridLayout()
         widget.setLayout(grid)
+        self.resize(250, 0)
 
         self.setWindowTitle("Hello, world !")
 
