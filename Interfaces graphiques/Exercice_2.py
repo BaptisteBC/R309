@@ -22,13 +22,23 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.temp, 0, 1)
 
         self.conv = QPushButton("Convertir")
-#        self.conv.clicked.connect(self.__actionConvertir)
+        self.conv.clicked.connect(self.actionConvertir)
         grid.addWidget(self.conv, 1, 1)
 
         self.labConv = QLabel("Conversion")
         grid.addWidget(self.labConv, 2, 0)
 
+        self.kelvin = QLineEdit()
+        # self.kelvin.setReadOnly(True)
+        grid.addWidget(self.kelvin, 2, 1)
 
+    def actionConvertir(self):
+        self.calcul()
+
+    def calcul(self):
+        kelvin = self.temp.text()
+        kelvin = round(float(kelvin + 273.15))
+        self.kelvin.setText(kelvin)
 
 
 if __name__ == "__main__":
