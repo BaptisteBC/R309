@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.__nom, 2, 0)
 
     def __actionOk(self):
-        self.__nom.setText(self.__ajoutNom.text())
+        self.__nom.setText(self.__ajoutNom.text)
 
 
     def __actionQuitter(self):

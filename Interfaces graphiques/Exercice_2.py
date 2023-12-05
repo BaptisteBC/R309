@@ -36,7 +36,7 @@ class MainWindow(QMainWindow):
         self.calcul()
 
     def calcul(self):
-        kelvin = self.temp.text()
+        kelvin = self.temp.text
         kelvin = round(float(kelvin + 273.15))
         self.kelvin.setText(kelvin)
 
