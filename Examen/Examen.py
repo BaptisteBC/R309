@@ -3,8 +3,7 @@ import socket
 import threading
 
 from PyQt6.QtCore import QCoreApplication
-from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QGridLayout, QLabel, QLineEdit, QPushButton, QLCDNumber, \
-    QSpinBox
+from PyQt6.QtWidgets import QMainWindow, QApplication, QWidget, QGridLayout, QLabel, QLineEdit, QPushButton
 
 
 class MainWindow(QMainWindow):
@@ -25,9 +24,9 @@ class MainWindow(QMainWindow):
         self.labServ = QLabel("Serveur")
         self.ipServ = QLineEdit('0.0.0.0')
         self.labPort = QLabel("Port")
-        self.portServ = QLineEdit("10000")
+        self.portServ = QLineEdit("10000")  # Défini comme str mais doit être converti en int
         self.labMaxClient = QLabel("Nombre de clients maximum")
-        self.maxClient = QLineEdit("5")
+        self.maxClient = QLineEdit("5")  # Défini comme str mais doit être converti en int
         self.stopStartButton = QPushButton("Démarrage du serveur")
         self.tchat = QLineEdit()
         self.tchat.setReadOnly(True)
