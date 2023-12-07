@@ -11,6 +11,11 @@ def reception(conn):
     return msg
 
 
+def arretServeur(conn, server_socket):
+    conn.close()
+    server_socket.close()
+
+
 if __name__ == "__main__":
     port = 10000
 
@@ -44,6 +49,5 @@ if __name__ == "__main__":
             reply = "Au revoir"
             print("Fermeture de la connexion")
             conn.send(reply.encode())
-            conn.close()
-            server_socket.close()
+            arretServeur(conn, server_socket)
             flag = True

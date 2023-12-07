@@ -8,6 +8,11 @@ def reception():
         reply = client_socket.recv(1024).decode()
         print(f"Serveur : {reply}")
     client_socket.send(reply.encode())
+    decoClient()
+
+
+def decoClient():
+    client_socket.close()
 
 
 if __name__ == '__main__':
@@ -21,11 +26,10 @@ if __name__ == '__main__':
     while not flag:
 
         ecoute = threading.Thread(target=reception)
-        ecoute .start()
+        ecoute.start()
 
         msg = ""
         while msg != "stop" and msg != "bye":
-
             msg = str(input("Votre message : "))
             client_socket.send(msg.encode())
         client_socket.send(msg.encode())
