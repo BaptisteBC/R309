@@ -1,17 +1,15 @@
-import socket
 import threading
+import socket
 
 
-def receive(conn):
+def reception(conn):
     msg = ""
     while msg != "bye" and msg != "stop":
         msg = conn.recv(1024).decode()
-        host = socket.gethostname()
-        print(f"Client {host} : {msg}")
+        print(f"Client : {msg}")
 
 
-if __name__ == '__main__':
-    flag = False
+if __name__ == "__main__":
     port = 10000
 
     server_socket = socket.socket()
@@ -21,12 +19,12 @@ if __name__ == '__main__':
     server_socket.listen(1)
     conn, address = server_socket.accept()
 
+    flag = False
     while not flag:
-        reply = ""
-
-        ecoute = threading.Thread(target=receive, args=[conn])
+        ecoute = threading.Thread(target=reception, args=[conn])
         ecoute.start()
 
+        reply = ""
         while reply != "bye" and reply != "stop":
             reply = str(input("Serveur :"))
             conn.send(reply.encode())
@@ -37,3 +35,11 @@ if __name__ == '__main__':
             print("En attente d'un nouveau client")
             server_socket.listen(1)
             conn, address = server_socket.accept()
+        if reply == "stop":
+            reply = "Au revoir"
+            print("Fermeture de la connexion")
+            conn.send(reply.encode())
+            conn.close()
+            server_socket.close()
+            flag = True
+

@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
             self.stopStartButton.setText("Arrêt du serveur")
             self.__demarrage()
 
-    def __accept(self):
+    def accept(self):
         self.server_socket.listen(1)
         self.conn, address = self.server_socket.accept()
 
@@ -69,9 +69,9 @@ class MainWindow(QMainWindow):
 
         self.server_socket = socket.socket()
         print("Serveur ouvert")
-        self.server_socket.bind((ip, port))
+        self.server_socket.bind((ip, int(port)))
 
-        accept = threading.Thread(target=self.__accept, args=[self.conn])
+        accept = threading.Thread(target=self.accept, args=[self.conn])
         accept.start()
 
         while not flag:
