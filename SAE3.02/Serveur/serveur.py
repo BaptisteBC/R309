@@ -7,6 +7,8 @@ def reception(conn):
     while msg != "bye" and msg != "stop":
         msg = conn.recv(1024).decode()
         print(f"Client : {msg}")
+    conn.send(msg.encode())
+    return msg
 
 
 if __name__ == "__main__":
@@ -28,13 +30,16 @@ if __name__ == "__main__":
         while reply != "bye" and reply != "stop":
             reply = str(input("Serveur :"))
             conn.send(reply.encode())
+        conn.send(reply.encode())
 
         ecoute.join()
 
         if reply == "bye":
+            conn.close()
             print("En attente d'un nouveau client")
             server_socket.listen(1)
             conn, address = server_socket.accept()
+
         if reply == "stop":
             reply = "Au revoir"
             print("Fermeture de la connexion")
@@ -42,4 +47,3 @@ if __name__ == "__main__":
             conn.close()
             server_socket.close()
             flag = True
-

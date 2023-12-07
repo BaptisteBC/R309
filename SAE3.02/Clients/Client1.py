@@ -6,7 +6,8 @@ def reception():
     reply = ""
     while reply != "bye" and reply != "stop":
         reply = client_socket.recv(1024).decode()
-        print(f"Client : {reply}")
+        print(f"Serveur : {reply}")
+    client_socket.send(reply.encode())
 
 
 if __name__ == '__main__':
@@ -22,28 +23,19 @@ if __name__ == '__main__':
         ecoute = threading.Thread(target=reception)
         ecoute .start()
 
+        msg = ""
         while msg != "stop" and msg != "bye":
 
             msg = str(input("Votre message : "))
             client_socket.send(msg.encode())
+        client_socket.send(msg.encode())
+        ecoute.join()
 
-        if message == "stop":
+        if msg == "stop":
             print("Fin de la connexion")
             client_socket.close()
             flag = True
-        elif message == "bye":
+        elif msg == "bye":
             print("Déconnexion")
             client_socket.close()
             flag = True
-        else:
-            reply = client_socket.recv(1024).decode()
-            print(f"Serveur : \n {reply}")
-
-            if reply == "bye":
-                print("Déconnexion")
-                client_socket.close()
-                flag = True
-            if reply == "stop":
-                print("Fin de la connexion")
-                client_socket.close()
-                flag = True
