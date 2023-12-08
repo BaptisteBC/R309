@@ -2,44 +2,27 @@ import socket
 import threading
 
 
-def reception():
-    reply = ""
+def ecoute(reply):
     while reply != "bye" and reply != "stop":
-        reply = client_socket.recv(1024).decode()
-        print(f"Serveur : {reply}")
-    client_socket.send(reply.encode())
-    decoClient()
-
-
-def decoClient():
-    client_socket.close()
+        reply = clientsocket.recv(1024).decode()
+        print(f"Serveur : \n {reply}")
 
 
 if __name__ == '__main__':
+    host = '127.0.0.1'
     port = 10000
+    msg = ""
+    reply = ""
 
-    client_socket = socket.socket()
-    client_socket.connect(("127.0.0.1", port))
+    clientsocket = socket.socket()
+    clientsocket.connect((host, port))
     print("Client connecté")
 
-    flag = False
-    while not flag:
+    messServeur = threading.Thread(target=ecoute, args=[reply])
+    messServeur.start()
 
-        ecoute = threading.Thread(target=reception)
-        ecoute.start()
+    while msg != "bye" and msg != "stop":
+        msg = str(input("Client : "))
+        clientsocket.send(msg.encode())
 
-        msg = ""
-        while msg != "stop" and msg != "bye":
-            msg = str(input("Votre message : "))
-            client_socket.send(msg.encode())
-        client_socket.send(msg.encode())
-        ecoute.join()
-
-        if msg == "stop":
-            print("Fin de la connexion")
-            client_socket.close()
-            flag = True
-        elif msg == "bye":
-            print("Déconnexion")
-            client_socket.close()
-            flag = True
+    messServeur.join()
