@@ -6,6 +6,7 @@ def ecoute(conn, msg):
     while msg != "bye" and msg != "stop":
         msg = conn.recv(1024).decode()
         print(f"Client : \n {msg}")
+    conn.send(msg.encode())
 
 
 if __name__ == '__main__':
@@ -21,11 +22,16 @@ if __name__ == '__main__':
     serveursocket.listen(1)
     conn, address = serveursocket.accept()
 
-    messClients = threading.Thread(target=ecoute, args=[conn, msg])
-    messClients.start()
+    while not flag:
+        messClients = threading.Thread(target=ecoute, args=[conn, msg])
+        messClients.start()
 
-    while reply != "bye" and reply != "stop":
-        reply = str(input("Serveur : "))
+        while reply != "stop":
+            reply = str(input("Serveur : "))
+            conn.send(reply.encode())
         conn.send(reply.encode())
 
-    messClients.join()
+        messClients.join()
+        print(msg)
+
+
