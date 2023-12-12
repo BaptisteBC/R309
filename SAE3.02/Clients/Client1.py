@@ -2,11 +2,13 @@ import socket
 import threading
 
 
-def ecoute(reply, stop_sending):
-    while reply != "bye" and reply != "stop":
+def ecoute(stop_sending):
+    reply = ""
+    while reply != "bye" and reply != "stop" and not stop_sending.is_set():
         reply = clientsocket.recv(1024).decode()
         print(f"Serveur : \n {reply}")
-    clientsocket.send(reply.encode())
+    msg = "bye"
+    clientsocket.send(msg.encode())
     stop_sending.set()
 
 
@@ -14,7 +16,6 @@ if __name__ == '__main__':
     host = '127.0.0.1'
     port = 10000
     msg = ""
-    reply = ""
 
     stop_sending = threading.Event()
 
@@ -22,13 +23,13 @@ if __name__ == '__main__':
     clientsocket.connect((host, port))
     print("Client connecté")
 
-    messServeur = threading.Thread(target=ecoute, args=[reply, stop_sending])
+    messServeur = threading.Thread(target=ecoute, args=[stop_sending])
     messServeur.start()
 
     while msg != "bye" and msg != "stop" and not stop_sending.is_set():
         msg = str(input("Client : "))
         clientsocket.send(msg.encode())
-    clientsocket.send(msg.encode())
+    stop_sending.set()
 
     messServeur.join()
     print("Déconnexion")
