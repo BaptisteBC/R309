@@ -10,7 +10,7 @@ class Serveur:
         self.server_socket = socket.socket()
         self.ip = ip
         self.port = port
-        self.max_client = 1
+        self.max_client = 2
         self.msg = ""
         self.reply = ""
         self.stop_sending = threading.Event()
@@ -55,14 +55,14 @@ class Serveur:
         print("Démarrage du serveur")
         self.server_socket.bind((self.ip, self.port))
         self.server_socket.listen(self.max_client)
-        self.conn, address = self.server_socket.accept()
+        conn, address = self.server_socket.accept()
 
-        listen = threading.Thread(target=self.ecoute)
+        listen = threading.Thread(target=self.ecoute, args=[conn])
         listen.start()
 
         while self.reply != "stop" and self.reply != "bye" and not self.stop_sending.is_set():
             self.reply = str(input("Serveur : "))
-            self.conn.send(self.reply.encode())
+            conn.send(self.reply.encode())
 
         listen.join()
 

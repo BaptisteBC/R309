@@ -11,6 +11,7 @@ class Client(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.listen = None
         self.clientsocket = socket.socket()
 
         self.stop_sending = None
@@ -31,7 +32,6 @@ class Client(QMainWindow):
         self.envoi = QPushButton("Envoi")
         self.tchat = QTextEdit()
         self.tchat.setReadOnly(True)
-        # self.tchat = QTextBrowser()
         self.quitButton = QPushButton("Quitter")
 
         grid.addWidget(self.labServ, 0, 0, 1, 1)
@@ -60,7 +60,7 @@ class Client(QMainWindow):
         reply = ""
         while reply != "bye" and reply != "stop" and not self.stop_sending.is_set():
             reply = self.clientsocket.recv(1024).decode()
-            self.tchat.append(reply)
+            self.tchat.append(f"CLient : {reply}")
 
         msg = "bye"
         self.clientsocket.send(msg.encode())
@@ -75,18 +75,9 @@ class Client(QMainWindow):
         self.listen = threading.Thread(target=self.ecoute)
         self.listen.start()
 
-        # msg = ""
-        # while msg != "bye" and msg != "stop" and not self.stop_sending.is_set():
-        #    msg = self.message.text()
-        #    self.envoi.clicked.connect(self.clientsocket.send(msg.encode()))
-        # self.stop_sending.set()
-
-        # listen.join()
-        # self.tchat.setText("Déconnexion")
-        # self.clientsocket.close()
-
     def envoi_msg(self):
         msg = self.message.text()
+        self.tchat.append(f"Moi : {msg}")
         print(f"J'envoie {msg}")
         self.clientsocket.send(msg.encode())
 
