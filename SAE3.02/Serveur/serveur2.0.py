@@ -4,12 +4,12 @@ import mysql.connector
 
 
 class Serveur:
-    def __init__(self):
+    def __init__(self, ip='0.0.0.0', port=10000):
         self.conn = None
         self.cnx = None
         self.server_socket = socket.socket()
-        self.ip = '0.0.0.0'
-        self.port = 10000
+        self.ip = ip
+        self.port = port
         self.max_client = 1
         self.msg = ""
         self.reply = ""
@@ -81,6 +81,9 @@ class Serveur:
         cursor.execute(f"INSERT INTO messages VALUES(0,'{self.msg}');")
         self.cnx.commit()
         cursor.close()
+
+    def id_client(self):
+        pass
 
 
 if __name__ == "__main__":

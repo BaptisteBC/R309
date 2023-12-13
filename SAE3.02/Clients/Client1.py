@@ -27,6 +27,7 @@ if __name__ == '__main__':
     messServeur.start()
 
     while msg != "bye" and msg != "stop" and not stop_sending.is_set():
+        print(1)
         msg = str(input("Client : "))
         clientsocket.send(msg.encode())
     stop_sending.set()
