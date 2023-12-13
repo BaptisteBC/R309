@@ -39,50 +39,56 @@ class Client(QMainWindow):
         grid.addWidget(self.labPort, 1, 0, 1, 1)
         grid.addWidget(self.portServ, 1, 1, 1, 1)
         grid.addWidget(self.connectButton, 2, 0, 1, 2)
-        grid.addWidget(self.labMessage, 3, 0, 1, 2)
+        grid.addWidget(self.labMessage, 3, 0, 1, 1)
+        grid.addWidget(self.envoi, 3, 1, 1, 1)
         grid.addWidget(self.message, 4, 0, 1, 2)
         grid.addWidget(self.tchat, 5, 0, 1, 2)
         grid.addWidget(self.quitButton, 6, 0, 1, 2)
 
         self.quitButton.clicked.connect(self.quitter)
         self.connectButton.clicked.connect(self.connexion)
-
+        self.envoi.clicked.connect(self.envoi_msg)
 
     def quitter(self):
+        self.clientsocket.send("bye".encode())
+        self.stop_sending.set()
+        self.listen.join()
+        self.clientsocket.close()
         QCoreApplication.exit(0)
 
     def ecoute(self):
-        print(5)
         reply = ""
         while reply != "bye" and reply != "stop" and not self.stop_sending.is_set():
             reply = self.clientsocket.recv(1024).decode()
-            print(f"Serveur : \n {reply}")
+            self.tchat.append(reply)
+
         msg = "bye"
         self.clientsocket.send(msg.encode())
         self.stop_sending.set()
 
     def connexion(self):
-        print(1)
         self.stop_sending = threading.Event()
-        print(2)
         self.tchat.append("Tentative de connexion")
         self.clientsocket.connect((self.ipServ.text(), int(self.portServ.text())))
-        print(3)
-        self.tchat.setText("Client connecté")
-        print(4)
+        self.tchat.append("Client connecté")
 
-        listen = threading.Thread(target=self.ecoute)
-        listen.start()
+        self.listen = threading.Thread(target=self.ecoute)
+        self.listen.start()
 
-        msg = ""
-        while msg != "bye" and msg != "stop" and not self.stop_sending.is_set():
-            msg = self.message.text()
-            self.envoi.clicked.connect(self.clientsocket.send(msg.encode()))
-        self.stop_sending.set()
+        # msg = ""
+        # while msg != "bye" and msg != "stop" and not self.stop_sending.is_set():
+        #    msg = self.message.text()
+        #    self.envoi.clicked.connect(self.clientsocket.send(msg.encode()))
+        # self.stop_sending.set()
 
-        listen.join()
-        self.tchat.setText("Déconnexion")
-        self.clientsocket.close()
+        # listen.join()
+        # self.tchat.setText("Déconnexion")
+        # self.clientsocket.close()
+
+    def envoi_msg(self):
+        msg = self.message.text()
+        print(f"J'envoie {msg}")
+        self.clientsocket.send(msg.encode())
 
 
 if __name__ == "__main__":

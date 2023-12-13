@@ -20,8 +20,10 @@ class Serveur:
         flag = False
         essais = 3
         while not flag:
-            identifiant = str(input("Identifiant : "))
-            mdp = str(input("Mot de passe : "))
+            # identifiant = str(input("Identifiant : "))
+            # mdp = str(input("Mot de passe : "))
+            identifiant = "toto"
+            mdp = "toto"
 
             cursor = self.cnx.cursor()
             cursor.execute(f"SELECT * FROM login where nom like '{identifiant}';")
