@@ -75,19 +75,26 @@ class Serveur:
 
     def ecoute(self, conn):
         print(self.reply)
-        while self.msg != "bye" and self.msg != "stop":
-            self.msg = conn.recv(1024).decode()
-            print(f"Client : \n {self.msg}")
-            self.write_bdd()
+        msg = ""
+        while msg != "bye" and msg != "stop" and not self.stop_sending.is_set():
+            msg = conn.recv(1024).decode()
+            print(f"Client : \n {msg}")
+            self.write_bdd(msg)
+            for i in range(len(self.liste_client)):
+                if self.liste_client[i] == conn and msg == "bye":
+                    pass
+                else:
+                    self.liste_client[i].send(msg.encode())
+
         self.reply = "bye"
         conn.send(self.reply.encode())
         print("Client déconnecté")
         self.stop_sending.set()
 
-    def write_bdd(self):
-        print(f"Writing : {self.msg}")
+    def write_bdd(self, msg):
+        print(f"Writing : {msg}")
         cursor = self.cnx.cursor()
-        cursor.execute(f"INSERT INTO messages VALUES(0,'{self.msg}');")
+        cursor.execute(f"INSERT INTO messages VALUES(0,'{msg}');")
         self.cnx.commit()
         cursor.close()
 
