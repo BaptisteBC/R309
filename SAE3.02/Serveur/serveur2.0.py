@@ -5,7 +5,6 @@ import mysql.connector
 
 class Serveur:
     def __init__(self, ip='0.0.0.0', port=10000):
-        self.conn = None
         self.cnx = None
         self.server_socket = socket.socket()
         self.ip = ip
@@ -15,6 +14,7 @@ class Serveur:
         self.reply = ""
         self.stop_sending = threading.Event()
         self.cnx = mysql.connector.connect(user='root', password='toto', host='127.0.0.1', database='test')
+        self.liste_client = []
 
     def admin(self):
         flag = False
@@ -51,12 +51,7 @@ class Serveur:
                         print("Trop de tentatives infructueuses")
                         flag = True
 
-    def main(self):
-        print("Démarrage du serveur")
-        self.server_socket.bind((self.ip, self.port))
-        self.server_socket.listen(self.max_client)
-        conn, address = self.server_socket.accept()
-
+    def accept(self, conn):
         listen = threading.Thread(target=self.ecoute, args=[conn])
         listen.start()
 
@@ -66,14 +61,26 @@ class Serveur:
 
         listen.join()
 
-    def ecoute(self):
+    def main(self):
+        print("Démarrage du serveur")
+        self.server_socket.bind((self.ip, self.port))
+        self.server_socket.listen(self.max_client)
+
+        for i in range(self.max_client):
+
+            conn, address = self.server_socket.accept()
+            self.liste_client.append(conn)
+            client_accept = threading.Thread(target=self.accept, args=[conn])
+            client_accept.start()
+
+    def ecoute(self, conn):
         print(self.reply)
         while self.msg != "bye" and self.msg != "stop":
-            self.msg = self.conn.recv(1024).decode()
+            self.msg = conn.recv(1024).decode()
             print(f"Client : \n {self.msg}")
             self.write_bdd()
         self.reply = "bye"
-        self.conn.send(self.reply.encode())
+        conn.send(self.reply.encode())
         print("Client déconnecté")
         self.stop_sending.set()
 
