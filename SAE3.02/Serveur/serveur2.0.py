@@ -81,7 +81,7 @@ class Serveur:
             print(f"Client : \n {msg}")
             self.write_bdd(msg)
             for i in range(len(self.liste_client)):
-                if self.liste_client[i] == conn and msg == "bye":
+                if self.liste_client[i] == conn or msg == "bye":
                     pass
                 else:
                     self.liste_client[i].send(msg.encode())
