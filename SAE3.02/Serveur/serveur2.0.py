@@ -5,7 +5,6 @@ import mysql.connector
 
 class Serveur:
     def __init__(self, ip='0.0.0.0', port=10000):
-        self.cnx = None
         self.server_socket = socket.socket()
         self.ip = ip
         self.port = port
@@ -52,6 +51,7 @@ class Serveur:
                         flag = True
 
     def accept(self, conn):
+        self.auth(conn)
         listen = threading.Thread(target=self.ecoute, args=[conn])
         listen.start()
 
@@ -61,13 +61,49 @@ class Serveur:
 
         listen.join()
 
+    def auth(self, conn):
+        identifiant = conn.recv(1024).decode()
+        print(identifiant)
+        envoi_mdp = "envoi_mdp"
+        conn.send(envoi_mdp.encode())
+        mdp = conn.recv(1024).decode()
+        print(mdp)
+
+        flag = False
+        essais = 3
+        while not flag:
+            cursor = self.cnx.cursor()
+            cursor.execute(f"SELECT * FROM login where nom like '{identifiant}';")
+            results = cursor.fetchall()
+            if not results:
+                conn.send("Identifiant introuvable, réessayez.".encode())
+                essais -= 1
+                if essais == 0:
+                    conn.send("Trop de tentatives infructueuses.".encode())
+                    flag = True
+            else:
+                result = results[0]
+                # print(result)
+                cursor.close()
+
+                if result[2] == mdp:
+                    conn.send("Connexion réussie".encode())
+                    conn.send("auth_OK".encode())
+
+                    flag = True
+                else:
+                    print("Mauvais mot de passe")
+                    essais -= 1
+                    if essais == 0:
+                        print("Trop de tentatives infructueuses")
+                        flag = True
+
     def main(self):
         print("Démarrage du serveur")
         self.server_socket.bind((self.ip, self.port))
         self.server_socket.listen(self.max_client)
 
         for i in range(self.max_client):
-
             conn, address = self.server_socket.accept()
             self.liste_client.append(conn)
             client_accept = threading.Thread(target=self.accept, args=[conn])

@@ -13,7 +13,7 @@ class Identification(QMainWindow):
 
         self.listen = None
         self.clientsocket = None
-        self.ipServ = '0.0.0.0'
+        self.ipServ = '127.0.0.1'
         self.portServ = 10000
         self.stop_sending = threading.Event()
 
@@ -28,6 +28,8 @@ class Identification(QMainWindow):
         self.identifiant = QLineEdit()
         self.labMdp = QLabel("Mot de passe")
         self.mdp = QLineEdit()
+        self.reply = QTextEdit()
+        self.reply.setReadOnly(True)
         self.connectButton = QPushButton("Connexion")
         self.quitButton = QPushButton("Quitter")
 
@@ -38,6 +40,7 @@ class Identification(QMainWindow):
         grid.addWidget(self.identifiant)
         grid.addWidget(self.labMdp)
         grid.addWidget(self.mdp)
+        grid.addWidget(self.reply)
         grid.addWidget(self.connectButton)
         grid.addWidget(self.quitButton)
 
@@ -51,10 +54,27 @@ class Identification(QMainWindow):
         self.clientsocket = socket.socket()
         self.clientsocket.connect((self.ipServ, int(self.portServ)))
 
-        msg = f"Identifiant {self.identifiant.text()}, mdp {self.mdp.text()}"
-        self.clientsocket.send(msg.encode())
+        identifiant = f"{self.identifiant.text()}"
+        self.clientsocket.send(identifiant.encode())
 
+        mdp_ask = self.clientsocket.recv(1024).decode()
+        print(mdp_ask)
+        if mdp_ask == "envoi_mdp":
+            mdp = f"{self.mdp.text()}"
+            self.clientsocket.send(mdp.encode())
 
+        t1 = threading.Thread(target=self.auth).start()
+        t1.join()
+
+    def auth(self):
+        auth_complete = False
+
+        while not auth_complete:
+            reply = self.clientsocket.recv(1024).decode()
+            if reply == "auth_OK":
+                auth_complete = True
+            else:
+                self.reply.append(reply)
 
     def ecoute(self):
         reply = ""
@@ -65,8 +85,6 @@ class Identification(QMainWindow):
         msg = "bye"
         self.clientsocket.send(msg.encode())
         self.stop_sending.set()
-
-
 
 
 class Client(QMainWindow):
