@@ -51,6 +51,9 @@ class Serveur:
                         flag = True
 
     def accept(self, conn):
+        reply = "Client connecté !"
+        print(reply)
+        conn.send(reply.encode())
         self.auth(conn)
         listen = threading.Thread(target=self.ecoute, args=[conn])
         listen.start()
@@ -62,33 +65,38 @@ class Serveur:
         listen.join()
 
     def auth(self, conn):
-        identifiant = conn.recv(1024).decode()
-        print(identifiant)
-        envoi_mdp = "envoi_mdp"
-        conn.send(envoi_mdp.encode())
-        mdp = conn.recv(1024).decode()
-        print(mdp)
-
         flag = False
         essais = 3
         while not flag:
+            identifiant = conn.recv(1024).decode()
+            print(identifiant)
+            mdp = conn.recv(1024).decode()
+            print(mdp)
             cursor = self.cnx.cursor()
             cursor.execute(f"SELECT * FROM login where nom like '{identifiant}';")
             results = cursor.fetchall()
+            cursor.close()
             if not results:
-                conn.send("Identifiant introuvable, réessayez.".encode())
+                reply = "Identifiant introuvable, réessayez."
+                print(reply)
+                conn.send(reply.encode())
                 essais -= 1
                 if essais == 0:
-                    conn.send("Trop de tentatives infructueuses.".encode())
+                    reply = "auth_stop"
+                    print(reply)
+
+                    conn.send(reply.encode())
                     flag = True
             else:
                 result = results[0]
-                # print(result)
-                cursor.close()
+                print(result)
 
                 if result[2] == mdp:
-                    conn.send("Connexion réussie".encode())
-                    conn.send("auth_OK".encode())
+                    reply = "auth_OK"
+                    conn.send(reply.encode())
+                    print(reply)
+                    conf_auth = "auth_OK"
+                    conn.send(conf_auth.encode())
 
                     flag = True
                 else:
@@ -96,6 +104,7 @@ class Serveur:
                     essais -= 1
                     if essais == 0:
                         print("Trop de tentatives infructueuses")
+                        conn.send("auth_stop".encode())
                         flag = True
 
     def main(self):
