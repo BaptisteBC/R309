@@ -11,6 +11,7 @@ class Identification(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.window = None
         self.isconnected = False
         self.listen = None
         self.clientsocket = None
@@ -28,9 +29,9 @@ class Identification(QMainWindow):
         self.labPort = QLabel("Port")
         self.portServ = QLineEdit("10000")
         self.labLogin = QLabel("Identifiant")
-        self.identifiant = QLineEdit()
+        self.identifiant = QLineEdit("toto")
         self.labMdp = QLabel("Mot de passe")
-        self.mdp = QLineEdit()
+        self.mdp = QLineEdit("toto")
         self.reply = QTextEdit()
         self.reply.setReadOnly(True)
         self.connectButton = QPushButton("Connexion")
@@ -55,10 +56,13 @@ class Identification(QMainWindow):
         grid.addWidget(self.quitButton)
 
     def quitter(self):
-        self.stop_sending.set()
-        self.listen.join()
-        self.clientsocket.close()
-        QCoreApplication.exit(0)
+        if not self.clientsocket:
+            QCoreApplication.exit(0)
+        else:
+            self.stop_sending.set()
+            self.listen.join()
+            self.clientsocket.close()
+            QCoreApplication.exit(0)
 
     def connexion(self):
         self.clientsocket = socket.socket()
@@ -89,7 +93,8 @@ class Identification(QMainWindow):
                     self.reply.append(f"Bienvenue {identifiant} !")
                     self.window = Client(self.clientsocket)
                     self.window.show()
-
+                    self.window.main()
+                    self.close()
 
                 elif reply == "auth_stop":
                     print("Trop de tentatives infructueuses, fin de la connexion.")
@@ -106,7 +111,7 @@ class Client(QWidget):
         self.listen = None
         self.clientsocket = clientsocket
 
-        self.stop_sending = None
+        self.flag = False
         self.setWindowTitle("Client de tchat")
         grid = QGridLayout()
         self.setLayout(grid)
@@ -124,6 +129,36 @@ class Client(QWidget):
         grid.addWidget(self.message)
         grid.addWidget(self.tchat)
         grid.addWidget(self.quitButton)
+
+        self.quitButton.clicked.connect(self.quitter)
+        self.envoi.clicked.connect(self.env_msg)
+        self.message.returnPressed.connect(self.env_msg)
+
+    def quitter(self):
+        self.clientsocket.send("bye".encode())
+        self.flag = True
+        print(1)
+        self.listen.join()
+        print(2)
+        self.clientsocket.close()
+        print(3)
+        QCoreApplication.exit(0)
+
+    def env_msg(self):
+        msg = self.message.text()
+        self.clientsocket.send(msg.encode())
+        self.tchat.append(f"Moi : {msg}")
+
+    def ecoute(self):
+        reply = ""
+        while reply != "bye" and reply != "stop" and not self.flag:
+            print("yo")
+            reply = self.clientsocket.recv(1024).decode()
+            self.tchat.append(f"CLient : {reply}")
+
+    def main(self):
+        self.listen = threading.Thread(target=self.ecoute)
+        self.listen.start()
 
 
 if __name__ == "__main__":

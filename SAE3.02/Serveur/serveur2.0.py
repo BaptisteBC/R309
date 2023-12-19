@@ -4,7 +4,8 @@ import mysql.connector
 
 
 class Serveur:
-    def __init__(self, ip='0.0.0.0', port=10000, max_client=2, sql_user='root', sql_mdp='toto', sql_host='127.0.0.1'):
+    def __init__(self, ip='0.0.0.0', port=10000, max_client=5, sql_user='root', sql_mdp='toto', sql_host='127.0.0.1'):
+        self.client_accept = None
         self.server_socket = socket.socket()
         self.ip = ip
         self.port = port
@@ -25,10 +26,6 @@ class Serveur:
 
         listen = threading.Thread(target=self.ecoute, args=[conn])
         listen.start()
-
-        while self.reply != "stop" and self.reply != "bye" and not self.stop_sending.is_set():
-            self.reply = str(input("Serveur : "))
-            conn.send(self.reply.encode())
 
         listen.join()
 
@@ -85,8 +82,10 @@ class Serveur:
         while not self.stop_serveur:
             conn, address = self.server_socket.accept()
             self.liste_client.append(conn)
-            client_accept = threading.Thread(target=self.accept, args=[conn])
-            client_accept.start()
+            self.client_accept = threading.Thread(target=self.accept, args=[conn])
+            self.client_accept.start()
+
+        self.client_accept.join()
 
     def ecoute(self, conn):
         msg = ""
@@ -100,11 +99,8 @@ class Serveur:
                 else:
                     self.liste_client[i].send(msg.encode())
 
-        self.reply = "bye"
-        conn.send(self.reply.encode())
         print("Client déconnecté")
-        self.stop_sending.set()
-
+        conn.send("bye".encode())
     def write_bdd(self, msg):
         print(f"Writing : {msg}")
         cursor = self.cnx.cursor()
