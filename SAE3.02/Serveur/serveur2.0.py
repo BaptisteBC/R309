@@ -30,10 +30,11 @@ class Serveur:
         listen.join()
 
     def auth(self, conn):
-        action = conn.recv(1024).decode()
+
         flag = False
         essais = 3
         while not flag:
+            action = conn.recv(1024).decode()
             if action == "auth":
                 print(action)
 
@@ -80,16 +81,22 @@ class Serveur:
             elif action == "inscrire":
                 print(action)
                 identifiant = conn.recv(1024).decode()
-                print(identifiant)
                 mdp = conn.recv(1024).decode()
-                print(mdp)
+                print(identifiant, mdp)
                 cursor = self.cnx.cursor()
-                cursor.execute(f"INSERT INTO login VALUES (0, '{identifiant}', '{mdp}');")
-                self.cnx.commit()
-                cursor.close()
-                conn.send("inscrip_OK".encode())
-                print("Inscription complète !")
-                flag = True
+                cursor.execute(f"SELECT * FROM login where nom like '{identifiant}';")
+                results = cursor.fetchall()
+                if not results:
+                    cursor.execute(f"INSERT INTO login VALUES (0, '{identifiant}', '{mdp}');")
+                    self.cnx.commit()
+                    cursor.close()
+                    conn.send("inscrip_OK".encode())
+                    print("Inscription complète !")
+                    flag = True
+                else:
+                    cursor.close()
+                    reply = "Try again"
+                    conn.send(reply.encode())
 
     def main(self):
         print("Démarrage du serveur")

@@ -132,6 +132,8 @@ class Identification(QMainWindow):
                     self.window.show()
                     self.window.main()
                     self.close()
+                else:
+                    self.reply.append(reply)
 
 
 
