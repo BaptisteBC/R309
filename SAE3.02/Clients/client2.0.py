@@ -35,12 +35,14 @@ class Identification(QMainWindow):
         self.reply = QTextEdit()
         self.reply.setReadOnly(True)
         self.connectButton = QPushButton("Connexion")
-        self.checkButton = QPushButton("Authentification")
+        self.authButton = QPushButton("Authentification")
+        self.inscripButton = QPushButton("Inscription")
         self.quitButton = QPushButton("Quitter")
 
         self.quitButton.clicked.connect(self.quitter)
         self.connectButton.clicked.connect(self.connexion)
-        self.checkButton.clicked.connect(self.auth)
+        self.authButton.clicked.connect(self.auth)
+        self.inscripButton.clicked.connect(self.inscription)
 
         grid.addWidget(self.labServ)
         grid.addWidget(self.ipServ)
@@ -51,7 +53,8 @@ class Identification(QMainWindow):
         grid.addWidget(self.identifiant)
         grid.addWidget(self.labMdp)
         grid.addWidget(self.mdp)
-        grid.addWidget(self.checkButton)
+        grid.addWidget(self.authButton)
+        grid.addWidget(self.inscripButton)
         grid.addWidget(self.reply)
         grid.addWidget(self.quitButton)
 
@@ -75,6 +78,7 @@ class Identification(QMainWindow):
         if not self.isconnected:
             self.reply.setText("Veuillez vous connecter avant de vous identifier.")
         else:
+            self.clientsocket.send("auth".encode())
             identifiant = f"{self.identifiant.text()}"
             mdp = f"{self.mdp.text()}"
             print(identifiant, mdp)
@@ -102,6 +106,33 @@ class Identification(QMainWindow):
                     QCoreApplication.exit(0)
                 else:
                     self.reply.append(reply)
+
+    def inscription(self):
+        if not self.isconnected:
+            self.reply.setText("Veuillez vous connecter avant de vous identifier.")
+        else:
+            self.clientsocket.send("inscrire".encode())
+            identifiant = f"{self.identifiant.text()}"
+            mdp = f"{self.mdp.text()}"
+            print(identifiant, mdp)
+            if not identifiant:
+                self.reply.append(f"Veuillez indiquer un identifiant.")
+            elif not mdp:
+                self.reply.append(f"Veuillez indiquer un mot de passe. ")
+            else:
+                self.reply.clear()
+                self.clientsocket.send(identifiant.encode())
+                self.clientsocket.send(mdp.encode())
+
+                reply = self.clientsocket.recv(1024).decode()
+                print(reply)
+                if reply == "inscrip_OK":
+                    self.reply.append(f"Bienvenue {identifiant} !")
+                    self.window = Client(self.clientsocket)
+                    self.window.show()
+                    self.window.main()
+                    self.close()
+
 
 
 class Client(QWidget):

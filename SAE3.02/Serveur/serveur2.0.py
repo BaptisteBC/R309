@@ -30,49 +30,66 @@ class Serveur:
         listen.join()
 
     def auth(self, conn):
+        action = conn.recv(1024).decode()
         flag = False
         essais = 3
         while not flag:
-            identifiant = conn.recv(1024).decode()
-            print(identifiant)
-            mdp = conn.recv(1024).decode()
-            print(mdp)
-            cursor = self.cnx.cursor()
-            cursor.execute(f"SELECT * FROM login where nom like '{identifiant}';")
-            results = cursor.fetchall()
-            cursor.close()
-            if not results:
-                reply = "Identifiant introuvable, réessayez."
-                print(reply)
-                conn.send(reply.encode())
-                essais -= 1
-                if essais == 0:
-                    reply = "auth_stop"
-                    print(reply)
+            if action == "auth":
+                print(action)
 
-                    conn.send(reply.encode())
-                    flag = True
-            else:
-                result = results[0]
-                print(result)
-
-                if result[2] == mdp:
-                    reply = "auth_OK"
-                    conn.send(reply.encode())
-                    print(reply)
-                    conf_auth = "auth_OK"
-                    conn.send(conf_auth.encode())
-
-                    flag = True
-                else:
-                    reply = "Mauvais mot de passe."
+                identifiant = conn.recv(1024).decode()
+                print(identifiant)
+                mdp = conn.recv(1024).decode()
+                print(mdp)
+                cursor = self.cnx.cursor()
+                cursor.execute(f"SELECT * FROM login where nom like '{identifiant}';")
+                results = cursor.fetchall()
+                cursor.close()
+                if not results:
+                    reply = "Identifiant introuvable, réessayez."
                     print(reply)
                     conn.send(reply.encode())
                     essais -= 1
                     if essais == 0:
-                        print("Trop de tentatives infructueuses")
-                        conn.send("auth_stop".encode())
+                        reply = "auth_stop"
+                        print(reply)
+
+                        conn.send(reply.encode())
                         flag = True
+                else:
+                    result = results[0]
+                    print(result)
+
+                    if result[2] == mdp:
+                        reply = "auth_OK"
+                        conn.send(reply.encode())
+                        print(reply)
+                        conf_auth = "auth_OK"
+                        conn.send(conf_auth.encode())
+
+                        flag = True
+                    else:
+                        reply = "Mauvais mot de passe."
+                        print(reply)
+                        conn.send(reply.encode())
+                        essais -= 1
+                        if essais == 0:
+                            print("Trop de tentatives infructueuses")
+                            conn.send("auth_stop".encode())
+                            flag = True
+            elif action == "inscrire":
+                print(action)
+                identifiant = conn.recv(1024).decode()
+                print(identifiant)
+                mdp = conn.recv(1024).decode()
+                print(mdp)
+                cursor = self.cnx.cursor()
+                cursor.execute(f"INSERT INTO login VALUES (0, '{identifiant}', '{mdp}');")
+                self.cnx.commit()
+                cursor.close()
+                conn.send("inscrip_OK".encode())
+                print("Inscription complète !")
+                flag = True
 
     def main(self):
         print("Démarrage du serveur")
