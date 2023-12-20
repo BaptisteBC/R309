@@ -202,8 +202,6 @@ class Client(QWidget):
             self.tchat.append(f"CLient : {reply}")
 
 
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     identification = Identification()
