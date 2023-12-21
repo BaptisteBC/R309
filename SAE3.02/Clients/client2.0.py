@@ -87,19 +87,18 @@ class Identification(QWidget):
         else:
             identifiant = f"{self.identifiant.text()}"
             mdp = f"{self.mdp.text()}"
-            print(identifiant, mdp)
             if not identifiant:
                 self.reply.append(f"Veuillez indiquer un identifiant.")
             elif not mdp:
                 self.reply.append(f"Veuillez indiquer un mot de passe. ")
             else:
-                self.clientsocket.send("auth".encode())
+                auth = "auth"
+                msg = f"{auth}`{identifiant}`{mdp}"
+                self.clientsocket.send(msg.encode())
+
                 self.reply.clear()
-                self.clientsocket.send(identifiant.encode())
-                self.clientsocket.send(mdp.encode())
 
                 reply = self.clientsocket.recv(1024).decode()
-                print(reply)
                 if reply == "auth_OK":
                     self.window = Client(self.clientsocket, identifiant)
                     self.window.show()
@@ -116,24 +115,21 @@ class Identification(QWidget):
         if not self.isconnected:
             self.reply.setText("Veuillez vous connecter avant de vous identifier.")
         else:
-
             identifiant = f"{self.identifiant.text()}"
             mdp = f"{self.mdp.text()}"
-            print(identifiant, mdp)
             if not identifiant:
                 self.reply.append(f"Veuillez indiquer un identifiant.")
             elif not mdp:
                 self.reply.append(f"Veuillez indiquer un mot de passe. ")
             else:
-                self.clientsocket.send("inscrire".encode())
+                inscrire = "inscrire"
+                msg = f"{inscrire}`{identifiant}`{mdp}"
+                self.clientsocket.send(msg.encode())
+
                 self.reply.clear()
-                self.clientsocket.send(identifiant.encode())
-                self.clientsocket.send(mdp.encode())
 
                 reply = self.clientsocket.recv(1024).decode()
-                print(reply)
                 if reply == "inscrip_OK":
-
                     self.window = Client(self.clientsocket, identifiant)
                     self.window.show()
                     self.window.main()
@@ -177,43 +173,45 @@ class Client(QWidget):
         self.quitButton.clicked.connect(self.quitter)
         self.envoi.clicked.connect(self.env_msg)
         self.message.returnPressed.connect(self.env_msg)
-        self.salonBox.currentTextChanged.connect(self.text_changed)
 
     def quitter(self):
         self.clientsocket.send("bye".encode())
         self.flag = True
+        self.listen.join()
         self.clientsocket.close()
         QCoreApplication.exit(0)
 
     def main(self):
         self.tchat.setText(f"Bienvenue {self.identifiant} !")
+
         self.listen = threading.Thread(target=self.ecoute)
         self.listen.start()
 
     def env_msg(self):
-        salon = self.salonBox.currentText()
-        self.clientsocket.send(salon.encode())
-        msg = self.message.text()
-        if msg == "bye":
+        salon = str(self.salonBox.currentText())
+        message = str(self.message.text())
+        if message == "bye":
             self.quitter()
         else:
+            msg = f"{message}`{salon}"
             self.clientsocket.send(msg.encode())
 
     def ecoute(self):
         reply = ""
         while reply != "bye" and reply != "stop" and not self.flag:
-            print("yo")
-            reply = self.clientsocket.recv(1024).decode()
-            if reply == "perm_ask":
-                permission = threading.Thread(target=self.permission)
-                permission.start()
+            reponse = self.clientsocket.recv(1024).decode()
+            recep = reponse.split(sep="`")
+            reply = recep[0]
+            if reply == "bye":
+                pass
+            elif len(recep) == 2:
+                perm = recep[1]
+                if perm == "perm_ask":
+                    self.tchat.append(reply)
+                    permission = threading.Thread(target=self.permission)
+                    permission.start()
             else:
                 self.tchat.append(f"{reply}")
-        self.quitter()
-
-    def text_changed(self):
-        salon = self.salonBox.currentText()
-        print(salon)
 
     def permission(self):
         self.permission = Permission(self.clientsocket, self.salonBox.currentText())

@@ -53,19 +53,18 @@ class Serveur:
         flag = False
         # essais = 3
         while not flag:
-            action = conn.recv(1024).decode()
+            msg = str(conn.recv(1024).decode())
+            recep = msg.split(sep="`")
+            action = recep[0]
             if action == "auth":
-                print(action)
-                identifiant = conn.recv(1024).decode()
-                mdp = conn.recv(1024).decode()
-                print(identifiant, mdp)
+                identifiant = recep[1]
+                mdp = recep[2]
                 cursor = self.cnx.cursor()
                 cursor.execute(f"SELECT * FROM login where Alias like '{identifiant}';")
                 results = cursor.fetchall()
                 cursor.close()
                 if not results:
                     reply = "Identifiant introuvable, réessayez."
-                    print(reply)
                     conn.send(reply.encode())
                     # essais -= 1
                     # if essais == 0:
@@ -76,19 +75,16 @@ class Serveur:
                     #    flag = True
                 else:
                     result = results[0]
-                    print(result)
                     id_client = result[0]
                     if result[2] == mdp:
                         reply = "auth_OK"
                         conn.send(reply.encode())
-                        print(reply)
                         listen = threading.Thread(target=self.ecoute, args=[conn, id_client, identifiant])
                         self.listen.append(listen)
                         listen.start()
                         flag = True
                     else:
                         reply = "Mauvais mot de passe."
-                        print(reply)
                         conn.send(reply.encode())
                         # essais -= 1
                         # if essais == 0:
@@ -96,37 +92,33 @@ class Serveur:
                         #    conn.send("auth_stop".encode())
                         #    flag = True
             elif action == "inscrire":
-                print(action)
-                identifiant = conn.recv(1024).decode()
-                mdp = conn.recv(1024).decode()
-                print(identifiant, mdp)
+                identifiant = recep[1]
+                mdp = recep[2]
                 cursor = self.cnx.cursor()
                 cursor.execute(f"SELECT * FROM login where Alias like '{identifiant}';")
-                results = cursor.fetchall()
-
+                results = cursor.fetchone()
                 if not results:
                     cursor.execute(f"INSERT INTO login VALUES (0, '{identifiant}', '{mdp}');")
                     self.cnx.commit()
-                    cursor.execute(f"SELECT * FROM login where Alias like '{identifiant}';")
-
-                    results = cursor.fetchall()
-                    result = results[0]
-                    id_client = result[0]
+                    cursor.execute(f"SELECT idClient FROM login where Alias like '{identifiant}';")
+                    results = cursor.fetchone()
+                    id_client = results[0]
                     cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, 2, 1)")
                     for i in range(3, 7):
                         cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, {i}, 0)")
-                        self.cnx.commit()
+                    self.cnx.commit()
                     cursor.close()
+
                     conn.send("inscrip_OK".encode())
-                    print("Inscription complète !")
+
                     listen = threading.Thread(target=self.ecoute, args=[conn, id_client, identifiant])
-                    self.listen.append(listen)
                     listen.start()
                     flag = True
                 else:
                     cursor.close()
                     reply = "Cet identifiant existe déjà, essayez de vous authentifier"
                     conn.send(reply.encode())
+
             elif action == "bye":
                 print("Client déconnecté")
                 flag = True
@@ -135,15 +127,16 @@ class Serveur:
         msg = ""
         salon = ""
         while msg != "bye" and msg != "stop" and not self.stop_serveur and salon != "bye":
-            salon = conn.recv(1024).decode()
-            msg = conn.recv(1024).decode()
-            print(salon)
-            if salon == "bye" or msg == "bye":
-                pass
+            message = str(conn.recv(1024).decode())
+            recep = message.split(sep="`")
+            msg = recep[0]
+            if len(recep) == 2:
+                salon = recep[1]
+            elif msg == "bye":
+                conn.send("bye".encode())
             else:
                 cursor = self.cnx.cursor()
-                cursor.execute(f"SELECT * FROM salons where Nom_Salon like '{salon}';")
-
+                cursor.execute(f"SELECT idSalon FROM salons WHERE Nom_Salon LIKE '{salon}';")
                 results = cursor.fetchone()
                 id_salon = results[0]
                 cursor.execute(
@@ -157,17 +150,16 @@ class Serveur:
                     for i in range(len(self.liste_client)):
                         try:
                             self.liste_client[i].send(msg.encode())
+                        except ConnectionResetError:
+                            pass
                         except ConnectionError:
                             pass
-                        else:
-                            pass
                 else:
-                    perm_ask = "perm_ask"
-                    conn.send(perm_ask.encode())
                     perm_denied = "Vous n'avez pas le droit d'envoyer de message dans ce salon."
-                    conn.send(perm_denied.encode())
+                    perm_ask = "perm_ask"
+                    reply = f"{perm_denied}`{perm_ask}"
+                    conn.send(reply.encode())
 
-        conn.send("bye".encode())
         print("Client déconnecté")
 
     def write_bdd(self, msg, id_client, identifiant, id_salon, salon):
@@ -179,19 +171,33 @@ class Serveur:
         self.cnx.commit()
         cursor.close()
 
-    def permission(self, salon):
-        print(salon)
-
     def commandes(self):
-        reply = ""
-        while reply != "kill":
-            reply = input("Admin : ")
-            print(reply)
+        cmd = ""
+        while cmd != "kill":
+            cmd = str(input("Admin : "))
+            if cmd == "kill":
+                pass
+            else:
+                commande = cmd.split(sep=" ")
+                user = commande[1]
+                if commande[0] == "ban":
+                    cursor = self.cnx.cursor()
+                    cursor.execute(f"SELECT * FROM login WHERE Alias LIKE '{user}';")
+                    result = cursor.fetchone()
+                    if not result:
+                        print("L'utilisateur demandé est introuvable")
+                        cursor.close()
+                    else:
+                        cursor.execute(f"UPDATE login SET banned=1 WHERE Alias LIKE '{user}';")
+                        self.cnx.commit()
+                        cursor.close()
         self.stop_serveur = True
         for i in range(len(self.liste_client)):
             try:
                 self.liste_client[i].send("bye".encode())
             except ConnectionResetError:
+                pass
+            except ConnectionError:
                 pass
         self.cnx.close()
         self.server_socket.close()
