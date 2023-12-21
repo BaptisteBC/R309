@@ -9,6 +9,8 @@ class Serveur:
         self.servInput = None
         self.listen = []
         self.client_accept = []
+        self.liste_client = []
+        self.clients = []
         self.server_socket = socket.socket()
         self.ip = ip
         self.port = port
@@ -18,7 +20,6 @@ class Serveur:
         self.stop_sending = threading.Event()
         self.database = 'coworkapp'
         self.cnx = mysql.connector.connect(user=sql_user, password=sql_mdp, host=sql_host, database=self.database)
-        self.liste_client = []
         self.stop_serveur = False
         self.listeSalons = ['Général', 'Blabla', 'Marketing', 'Informatique', 'Comptabilité']
 
@@ -61,7 +62,7 @@ class Serveur:
                 mdp = recep[2]
                 cursor = self.cnx.cursor()
                 cursor.execute(f"SELECT * FROM login where Alias like '{identifiant}';")
-                results = cursor.fetchall()
+                results = cursor.fetchone()
                 cursor.close()
                 if not results:
                     reply = "Identifiant introuvable, réessayez."
@@ -74,23 +75,28 @@ class Serveur:
                     #    conn.send(reply.encode())
                     #    flag = True
                 else:
-                    result = results[0]
-                    id_client = result[0]
-                    if result[2] == mdp:
-                        reply = "auth_OK"
+                    if results[3] == 1:
+                        reply = "Vous êtes bannis"
                         conn.send(reply.encode())
-                        listen = threading.Thread(target=self.ecoute, args=[conn, id_client, identifiant])
-                        self.listen.append(listen)
-                        listen.start()
-                        flag = True
+                        cursor.close()
                     else:
-                        reply = "Mauvais mot de passe."
-                        conn.send(reply.encode())
-                        # essais -= 1
-                        # if essais == 0:
-                        #    print("Trop de tentatives infructueuses")
-                        #    conn.send("auth_stop".encode())
-                        #    flag = True
+                        id_client = results[0]
+                        if results[2] == mdp:
+                            reply = "auth_OK"
+                            conn.send(reply.encode())
+                            self.clients.append([identifiant, conn])
+                            print(self.clients)
+                            listen = threading.Thread(target=self.ecoute, args=[conn, id_client, identifiant])
+                            listen.start()
+                            flag = True
+                        else:
+                            reply = "Mauvais mot de passe."
+                            conn.send(reply.encode())
+                            # essais -= 1
+                            # if essais == 0:
+                            #    print("Trop de tentatives infructueuses")
+                            #    conn.send("auth_stop".encode())
+                            #    flag = True
             elif action == "inscrire":
                 identifiant = recep[1]
                 mdp = recep[2]
@@ -130,11 +136,10 @@ class Serveur:
             message = str(conn.recv(1024).decode())
             recep = message.split(sep="`")
             msg = recep[0]
-            if len(recep) == 2:
-                salon = recep[1]
-            elif msg == "bye":
+            if msg == "bye":
                 conn.send("bye".encode())
             else:
+                salon = recep[1]
                 cursor = self.cnx.cursor()
                 cursor.execute(f"SELECT idSalon FROM salons WHERE Nom_Salon LIKE '{salon}';")
                 results = cursor.fetchone()
@@ -179,18 +184,52 @@ class Serveur:
                 pass
             else:
                 commande = cmd.split(sep=" ")
-                user = commande[1]
-                if commande[0] == "ban":
-                    cursor = self.cnx.cursor()
-                    cursor.execute(f"SELECT * FROM login WHERE Alias LIKE '{user}';")
-                    result = cursor.fetchone()
-                    if not result:
-                        print("L'utilisateur demandé est introuvable")
-                        cursor.close()
-                    else:
-                        cursor.execute(f"UPDATE login SET banned=1 WHERE Alias LIKE '{user}';")
-                        self.cnx.commit()
-                        cursor.close()
+                if len(commande) == 1:
+                    pass
+                else:
+                    user = commande[1]
+                    if commande[0] == "ban":
+                        cursor = self.cnx.cursor()
+                        cursor.execute(f"SELECT * FROM login WHERE Alias LIKE '{user}';")
+                        result = cursor.fetchone()
+                        if not result:
+                            print("L'utilisateur demandé est introuvable")
+                            cursor.close()
+                        else:
+                            cursor.execute(f"UPDATE login SET banned=1 WHERE Alias LIKE '{user}';")
+                            self.cnx.commit()
+                            cursor.close()
+                            for i in self.clients:
+                                if i[0] == user:
+                                    i[1].send("bye".encode())
+                    elif commande[0] == "unban":
+                        cursor = self.cnx.cursor()
+                        cursor.execute(f"SELECT * FROM login WHERE Alias LIKE '{user}';")
+                        result = cursor.fetchone()
+                        if not result:
+                            print("L'utilisateur demandé est introuvable")
+                            cursor.close()
+                        else:
+                            cursor.execute(f"UPDATE login SET banned=0 WHERE Alias LIKE '{user}';")
+                            self.cnx.commit()
+                            cursor.close()
+
+                    elif commande[0] == "kick":
+                        cursor = self.cnx.cursor()
+                        cursor.execute(f"SELECT * FROM login WHERE Alias LIKE '{user}';")
+                        result = cursor.fetchone()
+                        if not result:
+                            print("L'utilisateur demandé est introuvable")
+                            cursor.close()
+                        else:
+                            kick = datetime.datetime.now()
+                            cursor.execute(f"UPDATE login SET banned='1', kick='{kick}' WHERE Alias LIKE '{user}';")
+                            self.cnx.commit()
+                            cursor.close()
+                            for i in self.clients:
+                                if i[0] == user:
+                                    i[1].send("bye".encode())
+
         self.stop_serveur = True
         for i in range(len(self.liste_client)):
             try:

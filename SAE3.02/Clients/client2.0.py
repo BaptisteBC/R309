@@ -195,6 +195,7 @@ class Client(QWidget):
         else:
             msg = f"{message}`{salon}"
             self.clientsocket.send(msg.encode())
+            self.message.clear()
 
     def ecoute(self):
         reply = ""
@@ -203,7 +204,10 @@ class Client(QWidget):
             recep = reponse.split(sep="`")
             reply = recep[0]
             if reply == "bye":
-                pass
+                self.clientsocket.send("bye".encode())
+                self.flag = True
+                self.clientsocket.close()
+                QCoreApplication.exit(0)
             elif len(recep) == 2:
                 perm = recep[1]
                 if perm == "perm_ask":
