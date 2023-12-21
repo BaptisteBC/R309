@@ -6,6 +6,7 @@ import mysql.connector
 
 class Serveur:
     def __init__(self, ip='0.0.0.0', port=10000, max_client=5, sql_user='root', sql_mdp='toto', sql_host='127.0.0.1'):
+        self.servInput = None
         self.listen = []
         self.client_accept = []
         self.server_socket = socket.socket()
@@ -26,15 +27,21 @@ class Serveur:
         self.server_socket.bind((self.ip, self.port))
         self.server_socket.listen(self.max_client)
         client_id = 0
+        self.servInput = threading.Thread(target=self.commandes)
+        self.servInput.start()
         while not self.stop_serveur and len(self.liste_client) < self.max_client:
-            conn, address = self.server_socket.accept()
-            self.liste_client.append(conn)
-            accept = threading.Thread(target=self.accept, args=[conn, address])
-            print(accept)
-            self.client_accept.append(accept)
-            self.client_accept[client_id].start()
-            client_id += 1
-        print("Maximum de client atteint, fermeture du serveur")
+            try:
+                conn, address = self.server_socket.accept()
+                self.liste_client.append(conn)
+                accept = threading.Thread(target=self.accept, args=[conn, address])
+                print(accept)
+                self.client_accept.append(accept)
+                self.client_accept[client_id].start()
+                client_id += 1
+            except OSError:
+                pass
+        self.servInput.join()
+        print("Fermeture du serveur")
 
     def accept(self, conn, address):
         reply = "Client connecté !"
@@ -106,7 +113,7 @@ class Serveur:
                     result = results[0]
                     id_client = result[0]
                     cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, 2, 1)")
-                    for i in range(3,7):
+                    for i in range(3, 7):
                         cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, {i}, 0)")
                         self.cnx.commit()
                     cursor.close()
@@ -129,37 +136,37 @@ class Serveur:
         salon = ""
         while msg != "bye" and msg != "stop" and not self.stop_serveur and salon != "bye":
             salon = conn.recv(1024).decode()
+            msg = conn.recv(1024).decode()
             print(salon)
-            if salon == "bye":
+            if salon == "bye" or msg == "bye":
                 pass
-            if salon in self.listeSalons:
-                self.permission(salon)
             else:
                 cursor = self.cnx.cursor()
                 cursor.execute(f"SELECT * FROM salons where Nom_Salon like '{salon}';")
 
-                results = cursor.fetchall()
+                results = cursor.fetchone()
+                id_salon = results[0]
+                cursor.execute(
+                    f"SELECT Permission FROM permissions WHERE idClient LIKE {id_client} AND idSalon LIKE {id_salon};")
+                results = cursor.fetchone()
+                permission = results[0]
                 cursor.close()
-                result = results[0]
-                id_salon = result[0]
-
-                msg = conn.recv(1024).decode()
-                if msg == "bye":
-                    pass
-                else:
+                if permission == 1:
                     print(f"{salon} / {identifiant} : {msg}")
                     self.write_bdd(msg, id_client, identifiant, id_salon, salon)
                     for i in range(len(self.liste_client)):
-                        if self.liste_client[i] == conn:
+                        try:
+                            self.liste_client[i].send(msg.encode())
+                        except ConnectionError:
                             pass
                         else:
-                            try:
-                                self.liste_client[i].send(msg.encode())
-                            except ConnectionError:
-                                pass
-                            else:
-                                pass
-                            
+                            pass
+                else:
+                    perm_ask = "perm_ask"
+                    conn.send(perm_ask.encode())
+                    perm_denied = "Vous n'avez pas le droit d'envoyer de message dans ce salon."
+                    conn.send(perm_denied.encode())
+
         conn.send("bye".encode())
         print("Client déconnecté")
 
@@ -174,6 +181,20 @@ class Serveur:
 
     def permission(self, salon):
         print(salon)
+
+    def commandes(self):
+        reply = ""
+        while reply != "kill":
+            reply = input("Admin : ")
+            print(reply)
+        self.stop_serveur = True
+        for i in range(len(self.liste_client)):
+            try:
+                self.liste_client[i].send("bye".encode())
+            except ConnectionResetError:
+                pass
+        self.cnx.close()
+        self.server_socket.close()
 
 
 if __name__ == "__main__":

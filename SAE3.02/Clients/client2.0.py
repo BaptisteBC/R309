@@ -4,7 +4,7 @@ import threading
 
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QLineEdit, QPushButton, QApplication, \
-    QTextBrowser, QTextEdit, QComboBox
+    QTextBrowser, QTextEdit, QComboBox, QDialog, QCheckBox
 
 
 class Identification(QWidget):
@@ -146,6 +146,7 @@ class Client(QWidget):
     def __init__(self, clientsocket, identifiant):
         super().__init__()
 
+        self.permission = None
         self.listen = None
         self.clientsocket = clientsocket
         self.identifiant = identifiant
@@ -181,7 +182,6 @@ class Client(QWidget):
     def quitter(self):
         self.clientsocket.send("bye".encode())
         self.flag = True
-        self.listen.join()
         self.clientsocket.close()
         QCoreApplication.exit(0)
 
@@ -198,21 +198,58 @@ class Client(QWidget):
             self.quitter()
         else:
             self.clientsocket.send(msg.encode())
-            self.tchat.append(f"Moi : {msg}")
 
     def ecoute(self):
         reply = ""
         while reply != "bye" and reply != "stop" and not self.flag:
             print("yo")
             reply = self.clientsocket.recv(1024).decode()
-            if reply == "check_perm":
-                pass
+            if reply == "perm_ask":
+                permission = threading.Thread(target=self.permission)
+                permission.start()
             else:
-                self.tchat.append(f"CLient : {reply}")
+                self.tchat.append(f"{reply}")
+        self.quitter()
 
     def text_changed(self):
         salon = self.salonBox.currentText()
         print(salon)
+
+    def permission(self):
+        self.permission = Permission(self.clientsocket, self.salonBox.currentText())
+        self.permission.show()
+
+
+class Permission(QDialog):
+    def __init__(self, clientsocket, salon):
+        super().__init__()
+
+        self.clientsocket = clientsocket
+        self.salon = salon
+
+        self.setWindowTitle("Demande de permission")
+        grid = QGridLayout()
+        self.setLayout(grid)
+        self.resize(300, 300)
+
+        self.labPerm = QLabel(f"Souhaitez-vous demander la permission d'accès au salon {self.salon} ?")
+        self.perm = QCheckBox()
+        self.envoi = QPushButton("Demander la permission")
+
+        grid.addWidget(self.labPerm)
+        grid.addWidget(self.perm)
+        grid.addWidget(self.envoi)
+
+        self.envoi.clicked.connect(self.ask_perm)
+
+    def ask_perm(self):
+        if self.perm.isChecked():
+            ask_perm = f"ask_perm"
+            self.clientsocket.send(ask_perm.encode())
+            self.clientsocket.send(self.salon.encode())
+            self.close()
+        else:
+            pass
 
 
 if __name__ == "__main__":
