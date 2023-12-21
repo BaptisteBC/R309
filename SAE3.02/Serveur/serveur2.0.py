@@ -5,7 +5,7 @@ import mysql.connector
 
 
 class Serveur:
-    def __init__(self, ip='0.0.0.0', port=10000, max_client=2, sql_user='root', sql_mdp='toto', sql_host='127.0.0.1'):
+    def __init__(self, ip='0.0.0.0', port=10000, max_client=5, sql_user='root', sql_mdp='toto', sql_host='127.0.0.1'):
         self.listen = []
         self.client_accept = []
         self.server_socket = socket.socket()
@@ -19,6 +19,7 @@ class Serveur:
         self.cnx = mysql.connector.connect(user=sql_user, password=sql_mdp, host=sql_host, database=self.database)
         self.liste_client = []
         self.stop_serveur = False
+        self.listeSalons = ['Général', 'Blabla', 'Marketing', 'Informatique', 'Comptabilité']
 
     def main(self):
         print("Démarrage du serveur")
@@ -100,9 +101,14 @@ class Serveur:
                     cursor.execute(f"INSERT INTO login VALUES (0, '{identifiant}', '{mdp}');")
                     self.cnx.commit()
                     cursor.execute(f"SELECT * FROM login where Alias like '{identifiant}';")
+
                     results = cursor.fetchall()
                     result = results[0]
                     id_client = result[0]
+                    cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, 2, 1)")
+                    for i in range(3,7):
+                        cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, {i}, 0)")
+                        self.cnx.commit()
                     cursor.close()
                     conn.send("inscrip_OK".encode())
                     print("Inscription complète !")
@@ -120,31 +126,54 @@ class Serveur:
 
     def ecoute(self, conn, id_client, identifiant):
         msg = ""
-        while msg != "bye" and msg != "stop" and not self.stop_sending.is_set() and not self.stop_serveur:
-            msg = conn.recv(1024).decode()
-            print(f"{identifiant} : {msg}")
-            self.write_bdd(msg, id_client, identifiant)
-            for i in range(len(self.liste_client)):
-                if self.liste_client[i] == conn:
+        salon = ""
+        while msg != "bye" and msg != "stop" and not self.stop_serveur and salon != "bye":
+            salon = conn.recv(1024).decode()
+            print(salon)
+            if salon == "bye":
+                pass
+            if salon in self.listeSalons:
+                self.permission(salon)
+            else:
+                cursor = self.cnx.cursor()
+                cursor.execute(f"SELECT * FROM salons where Nom_Salon like '{salon}';")
+
+                results = cursor.fetchall()
+                cursor.close()
+                result = results[0]
+                id_salon = result[0]
+
+                msg = conn.recv(1024).decode()
+                if msg == "bye":
                     pass
                 else:
-                    try:
-                        self.liste_client[i].send(msg.encode())
-                    except ConnectionError:
-                        pass
-                    else:
-                        pass
-
-        print("Client déconnecté")
+                    print(f"{salon} / {identifiant} : {msg}")
+                    self.write_bdd(msg, id_client, identifiant, id_salon, salon)
+                    for i in range(len(self.liste_client)):
+                        if self.liste_client[i] == conn:
+                            pass
+                        else:
+                            try:
+                                self.liste_client[i].send(msg.encode())
+                            except ConnectionError:
+                                pass
+                            else:
+                                pass
+                            
         conn.send("bye".encode())
+        print("Client déconnecté")
 
-    def write_bdd(self, msg, id_client, identifiant):
+    def write_bdd(self, msg, id_client, identifiant, id_salon, salon):
         print(f"Writing : {msg}")
         cursor = self.cnx.cursor()
         date = datetime.datetime.now()
-        cursor.execute(f"INSERT INTO journal VALUES(1,'{id_client}', '{identifiant}', '{msg}', '{date}');")
+        cursor.execute(
+            f"INSERT INTO journal VALUES({id_salon},'{salon}',{id_client},'{identifiant}','{msg}','{date}');")
         self.cnx.commit()
         cursor.close()
+
+    def permission(self, salon):
+        print(salon)
 
 
 if __name__ == "__main__":

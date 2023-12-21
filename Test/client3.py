@@ -4,10 +4,10 @@ import threading
 
 from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QLineEdit, QPushButton, QApplication, \
-    QTextBrowser, QTextEdit, QComboBox
+    QTextBrowser, QTextEdit
 
 
-class Identification(QWidget):
+class Identification(QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -18,8 +18,10 @@ class Identification(QWidget):
         self.stop_sending = threading.Event()
 
         self.setWindowTitle("Identification")
+        widget = QWidget()
+        self.setCentralWidget(widget)
         grid = QGridLayout()
-        self.setLayout(grid)
+        widget.setLayout(grid)
         self.resize(300, 150)
 
         self.labServ = QLabel("@IP Serveur")
@@ -149,9 +151,6 @@ class Client(QWidget):
         self.listen = None
         self.clientsocket = clientsocket
         self.identifiant = identifiant
-        self.listeSalons = ['Général', 'Blabla', 'Marketing', 'Informatique', 'Comptabilité']
-        self.salonBox = QComboBox()
-        self.salonBox.addItems(self.listeSalons)
 
         self.flag = False
         self.setWindowTitle("Client de tchat")
@@ -166,7 +165,6 @@ class Client(QWidget):
         self.tchat.setReadOnly(True)
         self.quitButton = QPushButton("Quitter")
 
-        grid.addWidget(self.salonBox)
         grid.addWidget(self.labMessage)
         grid.addWidget(self.envoi)
         grid.addWidget(self.message)
@@ -176,7 +174,6 @@ class Client(QWidget):
         self.quitButton.clicked.connect(self.quitter)
         self.envoi.clicked.connect(self.env_msg)
         self.message.returnPressed.connect(self.env_msg)
-        self.salonBox.currentTextChanged.connect(self.text_changed)
 
     def quitter(self):
         self.clientsocket.send("bye".encode())
@@ -191,28 +188,20 @@ class Client(QWidget):
         self.listen.start()
 
     def env_msg(self):
-        salon = self.salonBox.currentText()
-        self.clientsocket.send(salon.encode())
         msg = self.message.text()
+        self.clientsocket.send(msg.encode())
+        self.tchat.append(f"Moi : {msg}")
         if msg == "bye":
             self.quitter()
-        else:
-            self.clientsocket.send(msg.encode())
-            self.tchat.append(f"Moi : {msg}")
 
     def ecoute(self):
         reply = ""
         while reply != "bye" and reply != "stop" and not self.flag:
             print("yo")
             reply = self.clientsocket.recv(1024).decode()
-            if reply == "check_perm":
-                pass
-            else:
-                self.tchat.append(f"CLient : {reply}")
+            self.tchat.append(f"CLient : {reply}")
 
-    def text_changed(self):
-        salon = self.salonBox.currentText()
-        print(salon)
+
 
 
 if __name__ == "__main__":
