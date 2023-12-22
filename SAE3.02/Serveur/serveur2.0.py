@@ -1,4 +1,4 @@
-import datetime
+from datetime import timedelta, datetime
 import socket
 import threading
 import mysql.connector
@@ -76,9 +76,36 @@ class Serveur:
                     #    flag = True
                 else:
                     if results[3] == 1:
-                        reply = "Vous êtes bannis"
-                        conn.send(reply.encode())
-                        cursor.close()
+                        if results[4] is None:
+                            reply = "Vous êtes bannis"
+                            conn.send(reply.encode())
+                        else:
+                            date = datetime.now()
+                            cursor = self.cnx.cursor()
+                            cursor.execute(f"SELECT kick FROM login WHERE Alias like '{identifiant}';")
+                            kick_results = cursor.fetchone()
+                            date_kick = kick_results[0]
+                            calcul = date_kick + timedelta(hours=1)
+                            if calcul < date:
+                                cursor.execute(
+                                    f"UPDATE login SET banned=0, kick=Null WHERE Alias LIKE '{identifiant}';")
+                                cursor.close()
+                                self.cnx.commit()
+                                id_client = results[0]
+                                if results[2] == mdp:
+                                    reply = "auth_OK"
+                                    conn.send(reply.encode())
+                                    self.clients.append([identifiant, conn])
+                                    print(self.clients)
+                                    listen = threading.Thread(target=self.ecoute, args=[conn, id_client, identifiant])
+                                    listen.start()
+                                    flag = True
+                                else:
+                                    reply = "Mauvais mot de passe."
+                                    conn.send(reply.encode())
+                            else:
+                                reply = f"Vous êtes bannis temporairement jusqu'à {calcul}"
+                                conn.send(reply.encode())
                     else:
                         id_client = results[0]
                         if results[2] == mdp:
@@ -170,7 +197,7 @@ class Serveur:
     def write_bdd(self, msg, id_client, identifiant, id_salon, salon):
         print(f"Writing : {msg}")
         cursor = self.cnx.cursor()
-        date = datetime.datetime.now()
+        date = datetime.now()
         cursor.execute(
             f"INSERT INTO journal VALUES({id_salon},'{salon}',{id_client},'{identifiant}','{msg}','{date}');")
         self.cnx.commit()
@@ -222,7 +249,7 @@ class Serveur:
                             print("L'utilisateur demandé est introuvable")
                             cursor.close()
                         else:
-                            kick = datetime.datetime.now()
+                            kick = datetime.now()
                             cursor.execute(f"UPDATE login SET banned='1', kick='{kick}' WHERE Alias LIKE '{user}';")
                             self.cnx.commit()
                             cursor.close()
