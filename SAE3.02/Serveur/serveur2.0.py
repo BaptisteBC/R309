@@ -112,6 +112,14 @@ class Serveur:
                             self.clients.append([identifiant, conn])
                             listen = threading.Thread(target=self.ecoute, args=[conn, id_client, identifiant])
                             listen.start()
+                            cursor = self.cnx.cursor()
+                            cursor.execute(f"SELECT Alias, message FROM journal INNER JOIN salons ON salons.idSalon = "
+                                           f"journal.idSalon WHERE salons.Nom_Salon LIKE 'Général';")
+                            results = cursor.fetchall()
+                            for i in results:
+                                formatage = f"{i[0]} : {i[1]} \n"
+                                conn.send(formatage.encode())
+                            cursor.close()
                             flag = True
                         else:
                             reply = "Mauvais mot de passe."
