@@ -27,9 +27,9 @@ class Identification(QWidget):
         self.labPort = QLabel("Port")
         self.portServ = QLineEdit("10000")
         self.labLogin = QLabel("Identifiant")
-        self.identifiant = QLineEdit("toto")
+        self.identifiant = QLineEdit("")
         self.labMdp = QLabel("Mot de passe")
-        self.mdp = QLineEdit("toto")
+        self.mdp = QLineEdit("")
         self.reply = QTextEdit()
         self.reply.setReadOnly(True)
         self.connectButton = QPushButton("Connexion")
@@ -60,10 +60,16 @@ class Identification(QWidget):
         if not self.clientsocket:
             QCoreApplication.exit(0)
         elif not self.listen:
-            self.stop_sending.set()
-            self.clientsocket.send("bye".encode())
-            self.clientsocket.close()
-            QCoreApplication.exit(0)
+            try:
+                self.stop_sending.set()
+                self.clientsocket.send("bye".encode())
+            except ConnectionError:
+                self.clientsocket.close()
+                QCoreApplication.exit(0)
+            else:
+                self.clientsocket.close()
+                QCoreApplication.exit(0)
+
         else:
             self.stop_sending.set()
             self.listen.join()
@@ -72,12 +78,20 @@ class Identification(QWidget):
             QCoreApplication.exit(0)
 
     def connexion(self):
-        if not self.isconnected:
-            self.clientsocket = socket.socket()
-            self.clientsocket.connect((self.ipServ.text(), int(self.portServ.text())))
-            self.isconnected = True
-            reply = self.clientsocket.recv(1024).decode()
-            self.reply.setText(reply)
+        if not self.ipServ.text():
+            self.reply.append(f"Veuillez indiquer l'adresse IP du serveur.")
+        elif not self.portServ.text():
+            self.reply.append(f"Veuillez indiquer le port de communication. ")
+        elif not self.isconnected:
+            try:
+                self.clientsocket = socket.socket()
+                self.clientsocket.connect((self.ipServ.text(), int(self.portServ.text())))
+            except ConnectionError:
+                self.reply.append("Erreur de connexion, veuillez réessayer")
+            else:
+                self.isconnected = True
+                reply = self.clientsocket.recv(1024).decode()
+                self.reply.setText(reply)
         else:
             pass
 
@@ -142,6 +156,7 @@ class Client(QWidget):
     def __init__(self, clientsocket, identifiant):
         super().__init__()
 
+        self.salon = "Général"
         self.perm = False
         self.listen = None
         self.clientsocket = clientsocket
@@ -173,6 +188,7 @@ class Client(QWidget):
         self.quitButton.clicked.connect(self.quitter)
         self.envoi.clicked.connect(self.env_msg)
         self.message.returnPressed.connect(self.env_msg)
+        self.salonBox.currentTextChanged.connect(self.changeSalon)
 
     def quitter(self):
         self.clientsocket.send("bye".encode())
@@ -188,7 +204,7 @@ class Client(QWidget):
         self.listen.start()
 
     def env_msg(self):
-        salon = self.salonBox.currentText()
+        salon = self.salon
         message = str(self.message.text())
         if message == "bye":
             self.quitter()
@@ -207,10 +223,13 @@ class Client(QWidget):
 
     def ecoute(self):
         reply = ""
+        salon = ""
         while reply != "bye" and reply != "stop" and not self.flag:
             reponse = self.clientsocket.recv(1024).decode()
             recep = reponse.split(sep="`")
             reply = recep[0]
+            if len(recep) > 1:
+                salon = recep[1]
             if reply == "bye":
                 self.clientsocket.send("bye".encode())
                 self.flag = True
@@ -219,7 +238,14 @@ class Client(QWidget):
             elif reply == "perm_OK":
                 self.perm = True
             else:
-                self.tchat.append(f"{reply}")
+                if salon == self.salon:
+                    self.tchat.append(f"{reply}")
+                else:
+                    pass
+
+    def changeSalon(self):
+        self.salon = self.salonBox.currentText()
+        self.tchat.clear()
 
 
 if __name__ == "__main__":

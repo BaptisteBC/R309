@@ -112,14 +112,14 @@ class Serveur:
                             self.clients.append([identifiant, conn])
                             listen = threading.Thread(target=self.ecoute, args=[conn, id_client, identifiant])
                             listen.start()
-                            cursor = self.cnx.cursor()
-                            cursor.execute(f"SELECT Alias, message FROM journal INNER JOIN salons ON salons.idSalon = "
-                                           f"journal.idSalon WHERE salons.Nom_Salon LIKE 'Général';")
-                            results = cursor.fetchall()
-                            for i in results:
-                                formatage = f"{i[0]} : {i[1]} \n"
-                                conn.send(formatage.encode())
-                            cursor.close()
+                            # cursor = self.cnx.cursor()
+                            # cursor.execute(f"SELECT Alias, message FROM journal INNER "
+                            #  "JOIN salons ON salons.idSalon = " f"journal.idSalon WHERE salons.Nom_Salon LIKE "
+                            # "'Général';")
+                            # results = cursor.fetchall()
+                            # for i in results:
+                            #   formatage = f"{i[0]} : {i[1]} \n"
+                            #   conn.send(formatage.encode()) cursor.close()
                             flag = True
                         else:
                             reply = "Mauvais mot de passe."
@@ -136,7 +136,7 @@ class Serveur:
                 cursor.execute(f"SELECT * FROM login where Alias like '{identifiant}';")
                 results = cursor.fetchone()
                 if not results:
-                    cursor.execute(f"INSERT INTO login VALUES (0, '{identifiant}', '{mdp}');")
+                    cursor.execute(f"INSERT INTO login(Alias, Mot_de_Passe) VALUES ('{identifiant}', '{mdp}');")
                     self.cnx.commit()
                     cursor.execute(f"SELECT idClient FROM login where Alias like '{identifiant}';")
                     results = cursor.fetchone()
@@ -188,21 +188,21 @@ class Serveur:
                             conn.send(reply.encode())
                         else:
                             reply = ("Vous n'avez pas la permission d'écrire dans ce salon. "
-                                     "Votre demande est transmise à l'administrateur.")
+                                     f"Votre demande est transmise à l'administrateur.`{salon}")
                             conn.send(reply.encode())
-                            self.reponse = input(f"{identifiant} souhaite accéder au salon suivant : {salon}. Acceptez"
-                                            f"-vous ? (yes,no)")
-                            print(self.reponse)
-                            if self.reponse == "yes":
-                                cursor = self.cnx.cursor()
-                                cursor.execute(f"UPDATE permissions SET permission=1 WHERE idSalon"
-                                               f"LIKE {id_salon} AND idClient LIKE {id_client}")
-                                self.cnx.commit()
-                                cursor.close()
-
                     else:
                         pass
-
+            # elif msg == "ask_hist":
+            #    msg = conn.recv(1024).decode().split(sep="`")
+            #    salon = recep[1]
+            #    cursor = self.cnx.cursor()
+            #    cursor.execute(f"SELECT Alias, message FROM journal INNER JOIN salons ON salons.idSalon = "
+            #                   f"journal.idSalon WHERE salons.Nom_Salon LIKE '{salon}';")
+            #    results = cursor.fetchall()
+            #    for i in results:
+            #        formatage = f"{i[0]} : {i[1]} \n"
+            #        conn.send(formatage.encode())
+            #    cursor.close()
             else:
                 salon = recep[1]
                 cursor = self.cnx.cursor()
@@ -215,7 +215,7 @@ class Serveur:
                 permission = results[0]
                 cursor.close()
                 if permission == 1:
-                    broadcast = f"{identifiant} : {msg}"
+                    broadcast = f"{identifiant} : {msg}`{salon}"
                     self.write_bdd(msg, id_client, identifiant, id_salon, salon)
                     for i in range(len(self.liste_client)):
                         try:
