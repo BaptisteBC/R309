@@ -8,7 +8,27 @@ from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QLineEdit
 
 
 class Identification(QWidget):
+    """
+    Classe Identification: Première fenêtre à s'afficher au lancement du script client.
+
+    Champs :
+        @IP Serveur
+        Port
+        Identifiant
+        Mot de passe
+
+    Boutons:
+        Connexion : Lance le script de connexion au serveur utilisant les valeurs des champs @IP Serveur et Port
+        Authentification : Lance le script d'authentification avec le serveur en utilisant les valeurs des champs
+            Identifiant et Mot de Passe
+        Inscription : Lance le script d'inscription avec le serveur en utilisant les valeurs des champs
+            Identifiant et Mot de Passe
+        Quitter : Envoie un signal de fermeture de la connexion au serveur et ferme l'application
+    """
     def __init__(self):
+        """
+        Création et mise en forme de la fenêtre de tchat
+        """
         super().__init__()
 
         self.window = None
@@ -57,6 +77,10 @@ class Identification(QWidget):
         grid.addWidget(self.quitButton)
 
     def quitter(self):
+        """
+        Vérifie si le client est connecté et si c'est le cas, envoie un signal d'extinction de la connexion au serveur.
+        Dans tous les cas ferme l'application proprement.
+        """
         if not self.clientsocket:
             QCoreApplication.exit(0)
         elif not self.listen:
@@ -78,6 +102,10 @@ class Identification(QWidget):
             QCoreApplication.exit(0)
 
     def connexion(self):
+        """
+        Script de connexion lancé lorsque le bouton "Connexion" est cliqué.
+        Avant de se connexter au serveur, vérifie que les champs requis ne soient pas vides
+        """
         if not self.ipServ.text():
             self.reply.append(f"Veuillez indiquer l'adresse IP du serveur.")
         elif not self.portServ.text():
@@ -96,6 +124,11 @@ class Identification(QWidget):
             pass
 
     def auth(self):
+        """
+        Script d'authentification lancé lorsque le bouton "Authentification" est cliqué.
+        Vérifie que les champs Identifiant et Mot de Passe ne soient pas vide avant d'envoyer les
+        informations au serveur
+        """
         if not self.isconnected:
             self.reply.setText("Veuillez vous connecter avant de vous identifier.")
         else:
@@ -115,8 +148,8 @@ class Identification(QWidget):
                 reply = self.clientsocket.recv(1024).decode()
                 if reply == "auth_OK":
                     self.window = Client(self.clientsocket, identifiant)
-                    self.window.show()
-                    self.window.main()
+                    self.window.show()  # Lancement de la fenêtre de tchat principal
+                    self.window.main()  # Lancement de la fonction de démarrage de la fenêtre principale
                     self.close()
                 # elif reply == "auth_stop":
                 #    print("Trop de tentatives infructueuses, fin de la connexion.")
@@ -126,6 +159,11 @@ class Identification(QWidget):
                     self.reply.append(reply)
 
     def inscription(self):
+        """
+        Fonction d'inscription du client auprès du serveur lorsque le bouton "Inscription" est cliqué.
+        Vérifie que les champs Identifiant et Mot de Passe ne soient pas vide avant d'envoyer les
+        informations au serveur
+        """
         if not self.isconnected:
             self.reply.setText("Veuillez vous connecter avant de vous identifier.")
         else:
@@ -153,6 +191,12 @@ class Identification(QWidget):
 
 
 class Client(QWidget):
+    """
+    Classe Client : Fenêtre de tchat principale permettant de communiquer avec les autres client connectés au serveur.
+    Une gestion des serveurs s'effectue grâce au menu déroulant en première ligne de la fenêtre.
+    L'envoi des messages s'effectue si l'autorisation est envoyé côté serveur.
+    Seuls les messages du serveur dans lequel se trouve le client sont affichés.
+    """
     def __init__(self, clientsocket, identifiant):
         super().__init__()
 
@@ -198,12 +242,20 @@ class Client(QWidget):
         QCoreApplication.exit(0)
 
     def main(self):
+        """
+        Fonction qui lance la fonction ecoute() dans un thread afin de ne pas empêcher le programme principal
+        (interface graphique) de fonctionner.
+        """
         self.tchat.setText(f"Bienvenue {self.identifiant} !")
 
         self.listen = threading.Thread(target=self.ecoute)
         self.listen.start()
 
     def env_msg(self):
+        """
+        Fonction d'envoi des messages lorsque le bouton "envoi" est cliqué. Si le salon actuel est différent de
+        "Général" alors le client demande la permission d'écrire au serveur.
+        """
         salon = self.salon
         message = str(self.message.text())
         if message == "bye":
@@ -222,6 +274,10 @@ class Client(QWidget):
                 self.perm = False
 
     def ecoute(self):
+        """
+        Fonction de réception des messages qui sont affichés dans la zone de tchat lorsque le salon du message est le
+        même que le salon dans lequel est le client.
+        """
         reply = ""
         salon = ""
         while reply != "bye" and reply != "stop" and not self.flag:
@@ -244,6 +300,10 @@ class Client(QWidget):
                     pass
 
     def changeSalon(self):
+        """
+        Fonction qui récupère le salon actuel dans le menu déroulant dès que celui-ci change.
+        Efface les messages de la fenêtre de tchat lorsque le salon change.
+        """
         self.salon = self.salonBox.currentText()
         self.tchat.clear()
 

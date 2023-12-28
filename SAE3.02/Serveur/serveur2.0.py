@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from datetime import timedelta, datetime
 import socket
 import threading
@@ -5,26 +7,65 @@ import mysql.connector
 
 
 class Serveur:
-    def __init__(self, ip='0.0.0.0', port=10000, max_client=5, sql_user='root', sql_mdp='toto', sql_host='127.0.0.1'):
+    """
+    Classe Serveur : Serveur de tchat permettant la communication de plusieurs clients identifiés
+
+    Fonctions :
+        main(): initie la connexion (socket) et lance la fonction commandes() en thread. De plus, cette fonction permet
+            de recevoir la connexion des clients puis de lancer la fonction d'authentification auth().
+        accept(): fonction lancée dans un thread à la suite de la connexion d'un utilisateur. Cette fonction notifie
+            le client de la réussite de la connexion et lance la fonction auth().
+        auth(): fonction d'authentification et d'inscription. En fonction du bouton cliqué côté client le programme
+            permet soit l'authentification, soit l'inscription du client en intéragissant avec la base de données.
+            La possibilité que le client se déconnecte est aussi prise en compte.
+        ecoute(): fonction lancée dans un thread qui permet de recevoir tous les messages des client. Cette fonction
+            intéragit avec la base de données afin de vérifier les permissions relatives au salons de discussion.
+        write_bdd(): fonction lancée à partir de la fonction ecoute(). Cette fonction permet l'écriture des messages
+            reçus dans la table "journal" de la base de données.
+        commandes(): en parallèle du programme général, permet à l'administrateur de saisir des commandes en ligne
+            de commandes afin de bannir définitivement ou temporairement un utilisateur, de le débannir ou de mettre
+            fin à la connexion avec tous les clients avant de terminer le script du serveur.
+
+    """
+
+    def __init__(self, ip: str = '0.0.0.0', port: int = 10000, max_client: int = 5, sql_user: str = 'root',
+                 sql_mdp: str = 'toto', sql_host: str = '127.0.0.1'):
+        """
+        :param ip: chaine de caractères prenant en valeur l'adresse IP du serveur. La valeur par défaut est '0.0.0.0',
+            soit la machine sur laquelle est lancée ce script.
+        :param port: le port d'écoute du serveur. Le port du client et du serveur doivent être identiques pour assurer
+            le bon fonctionnement de la communication. Par défaut la valeur du port est 10000.
+        :param max_client: maximum de clients pouvant se connecter au serveur. Une fois ce maximum atteint le serveur de tchat
+            se ferme. Par défaut la valeur maximum de client est placée à 5.
+        :param sql_user: identifiant de connexion au serveur sql
+        :param sql_mdp: mot de passe de connexion au serveur sql
+        :param sql_host: adresse IP du serveur sql
+        """
         self.reponse = None
         self.servInput = None
-        self.listen = []
-        self.client_accept = []
-        self.liste_client = []
-        self.clients = []
-        self.server_socket = socket.socket()
-        self.ip = ip
-        self.port = port
-        self.max_client = max_client
-        self.msg = ""
-        self.reply = ""
+        self.listen: list = []
+        self.client_accept: list = []
+        self.liste_client: list = []  # Liste des clients connectés défini par la connexion socket (conn)
+        self.clients: list = []  # Liste des clients connectés définis par la connexion socket et leur identifiant
+        self.server_socket = socket.socket()  # Création du socket
+        self.ip: str = ip
+        self.port: int = port
+        self.max_client: int = max_client
+        self.msg: str = ""
+        self.reply: str = ""
         self.stop_sending = threading.Event()
-        self.database = 'coworkapp'
+        self.database: str = 'SAE302'
         self.cnx = mysql.connector.connect(user=sql_user, password=sql_mdp, host=sql_host, database=self.database)
-        self.stop_serveur = False
-        self.listeSalons = ['Général', 'Blabla', 'Marketing', 'Informatique', 'Comptabilité']
+        self.stop_serveur: bool = False
+        self.listeSalons: list = ['Général', 'Blabla', 'Marketing', 'Informatique', 'Comptabilité']
 
     def main(self):
+        """
+        Fonction de lancement du serveur. Lance la fonction commandes() dans un thread et pour chaque nouveau client
+        connecté, lance la fonction accept() avec l'argument "conn" qui correspond aux informations du socket client.
+
+        self.servInput : thread de saisie des commandes par l'administrateur
+        """
         print("Démarrage du serveur")
         self.server_socket.bind((self.ip, self.port))
         self.server_socket.listen(self.max_client)
@@ -45,18 +86,33 @@ class Serveur:
         print("Fermeture du serveur")
 
     def accept(self, conn, address):
+        """
+        Fonction de confirmation de la connexion. Cette fonction envoie un message de confirmation au client avant
+        de lancer la fonction auth() avec l'argument "conn".
+        """
         reply = "Client connecté !"
         conn.send(reply.encode())
         self.auth(conn)
 
     def auth(self, conn):
+        """
+        Fonction d'authentification ou d'inscription du client. Trois actions possibles:
+            Authentification : Recherche les identifiants reçus dans la base de données et vérifie que l'utilisateur
+                ne soit pas banni. Renvoie des messages de confirmation et lance un thread de la fonction ecoute()
+                si l'identifiant et le mot de passe correspondent.
+            Inscription : Si l'identifiant n'existe pas dans la base de données, alors le serveur l'y enregistre et
+                y associe son mot de passe. Le serveur créé aussi les permissions de base pour les salons avant
+                de lancer un thread de la fonction ecoute().
+            Bye : Si le client décide de se déconnecter avant de s'être authentifié et ferme la connexion, le serveur
+                arrête d'essayer d'identifier ce client et cesse la connexion.
+        """
         flag = False
         # essais = 3
         while not flag:
             msg = str(conn.recv(1024).decode())
             recep = msg.split(sep="`")
             action = recep[0]
-            if action == "auth":
+            if action == "auth":  #Authentification
                 identifiant = recep[1]
                 mdp = recep[2]
                 cursor = self.cnx.cursor()
@@ -74,8 +130,8 @@ class Serveur:
                     #    conn.send(reply.encode())
                     #    flag = True
                 else:
-                    if results[3] == 1:
-                        if results[4] is None:
+                    if results[3] == 1:  # results[3] correspond à la colonne "banned" de la table "login"
+                        if results[4] is None:  # results[3] correspond à la colonne "kick" de la table "login"
                             reply = "Vous êtes bannis"
                             conn.send(reply.encode())
                         else:
@@ -129,7 +185,7 @@ class Serveur:
                             #    print("Trop de tentatives infructueuses")
                             #    conn.send("auth_stop".encode())
                             #    flag = True
-            elif action == "inscrire":
+            elif action == "inscrire":  # Inscription
                 identifiant = recep[1]
                 mdp = recep[2]
                 cursor = self.cnx.cursor()
@@ -141,8 +197,8 @@ class Serveur:
                     cursor.execute(f"SELECT idClient FROM login where Alias like '{identifiant}';")
                     results = cursor.fetchone()
                     id_client = results[0]
-                    cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, 2, 1)")
-                    for i in range(3, 7):
+                    cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, 1, 1)")
+                    for i in range(2, 6):  # Attribution des permissions par défaut
                         cursor.execute(f"INSERT INTO permissions VALUES ({id_client}, {i}, 0)")
                     self.cnx.commit()
                     cursor.close()
@@ -161,6 +217,10 @@ class Serveur:
                 flag = True
 
     def ecoute(self, conn, id_client, identifiant):
+        """
+        Fonction d'écoute du client. Cette fonction reçoit les messages et leurs informations (identifiant, salon) puis
+        les vérifie avant de les retransmettre à tous les clients connectés.
+        """
         msg = ""
         salon = ""
         while msg != "bye" and msg != "stop" and not self.stop_serveur and salon != "bye":
@@ -169,7 +229,7 @@ class Serveur:
             msg = recep[0]
             if msg == "bye":
                 conn.send("bye".encode())
-            elif msg == "ask_perm":
+            elif msg == "ask_perm":  # Si le salon est différent de "Général" le client demande la permission d'écrire
                 salon = recep[1]
                 cursor = self.cnx.cursor()
                 cursor.execute("SELECT permissions.idSalon, Permission, permissions.idClient, login.Alias FROM "
@@ -220,7 +280,7 @@ class Serveur:
                     for i in range(len(self.liste_client)):
                         try:
                             self.liste_client[i].send(broadcast.encode())
-                        except ConnectionResetError:
+                        except ConnectionResetError:  # Permet de ne pas lever d'erreur si un client a été déconnecté
                             pass
                         except ConnectionError:
                             pass
@@ -231,6 +291,9 @@ class Serveur:
                     conn.send(reply.encode())
 
     def write_bdd(self, msg, id_client, identifiant, id_salon, salon):
+        """
+        Fonction d'enregistrement des messages dans la table "journal" de la base de données
+        """
         cursor = self.cnx.cursor()
         date = datetime.now()
         cursor.execute(
@@ -239,6 +302,14 @@ class Serveur:
         cursor.close()
 
     def commandes(self):
+        """
+        Fonction de saisie des commandes par l'administrateur. Les commandes disponibles sont les suivantes :
+            kill : met fin au programme de saisie de commandes et envoie un signal de déconnexion aux clients avant
+                de terminer le script serveur.
+            ban : permet de bannir définitivement l'utilisateur mit en argument
+            unban : permet de débannir l'utilisateur mit en argument
+            kick : permet de bannir pendant une heure l'utilisateur mit en argument
+        """
         cmd = ""
         while cmd != "kill":
             cmd = str(input("Admin : "))
